@@ -15,7 +15,7 @@ import java.util.zip.ZipFile;
 
 public class NativeLibraryHelperExt {
 
-    private static final String TAG = "NativeLibraryHelperExt";
+    private static final String TAG = "FridaXposed.NativeLibraryHelperExt";
 
     public static int copyNativeBinaries(File apkFile, File sharedLibraryDir) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {

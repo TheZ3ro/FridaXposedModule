@@ -1,5 +1,7 @@
 package com.wind.frida.xposed;
 
+import static com.wind.frida.xposed.BuildConfig.APPLICATION_ID;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
@@ -15,11 +17,13 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 @SuppressLint("UnsafeDynamicallyLoadedCode")
 public class XposedEntry implements IXposedHookLoadPackage {
-    private static final String TAG = "XposedEntry";
-    private static final String FRIDA_SO_FILE_NAME = "libfrida-gadget.so";  // current so version is 12.8.20
+    private static final String TAG = "FridaXposed.XposedEntry";
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
+        if (lpparam.packageName.equals(APPLICATION_ID)) {
+            return;
+        }
 
         boolean isSystemApp;
         if (lpparam.appInfo != null) {
@@ -57,28 +61,30 @@ public class XposedEntry implements IXposedHookLoadPackage {
         String libPath = dataFilePath + File.separator + "lib";
         AppUtils.ensurePathExist(libPath);
 
-        String soFilePath = libPath + File.separator + FRIDA_SO_FILE_NAME;
+        String soFilePath = libPath + File.separator + AppUtils.FRIDA_SO_FILE_NAME;
         File soFile = new File(soFilePath);
-        String pluginPath = "";
+        String pluginPath = AppUtils.getLocalPluginPath();
+        String configPath = AppUtils.getLocalConfigPath();
 
         // only copy the so file on main process
-        if (isMainProcess && !soFile.exists()) {
-            pluginPath = AppUtils.getPluginApkPath();
+        if (isMainProcess) {
+            if (pluginPath.equals("") || !soFile.exists()) {
+                // we copy from the APK only if the update path is empty OR if the soFile does not exists
+                pluginPath = AppUtils.getPluginApkPath();
+            }
+            Log.d(TAG, pluginPath + " --> " + libPath);
             NativeLibraryHelperExt.copyNativeBinaries(new File(pluginPath), new File(libPath));
-        }
+            new File(pluginPath).renameTo(new File(pluginPath + ".copy"));
 
-        // You can put libfrida-gadget.config under sdcard and copy script file to /data/local/tmp/hook.js
-        // then frida can be used without command line.
-        // Or, you can put libfrida-gadget.config.so in the lib path, rebuild and Install this plugin,
-        // then the libfrida-gadget.config.so is copied into taget path
-//        if (isMainProcess) {
-//            String configPath = "sdcard/libfrida-gadget.config";
-//            AppUtils.copyFile(configPath, libPath + File.separator + "libfrida-gadget.config");
-//        }
+            if (!configPath.equals("")) {
+                // we also copy the config file if it is present
+                AppUtils.copyFile(configPath, libPath + File.separator + AppUtils.FRIDA_CONFIG_FILE_NAME);
+            }
+        }
 
         Log.i(TAG, " handleLoadPackage pluginPath = " + pluginPath + " pluginPath exist = "
                 + (new File(pluginPath)).exists() + " soFilePath = " + soFilePath + " soFilePath exist = "
-                + soFile.exists());
+                + soFile.exists() + " configPath = " + configPath + " configPath exist = " + (new File(configPath)).exists() );
 
         if (soFile.exists()) {
             try {

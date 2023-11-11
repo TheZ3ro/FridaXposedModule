@@ -14,6 +14,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+
 import dalvik.system.DexFile;
 
 /**
@@ -21,8 +22,10 @@ import dalvik.system.DexFile;
  */
 public class AppUtils {
 
-    private static final String TAG = "AppUtils";
+    private static final String TAG = "FridaXposed.AppUtils";
 
+    public static final String FRIDA_SO_FILE_NAME = "libfrida-gadget.so";  // current so version is 16.1.5
+    public static final String FRIDA_CONFIG_FILE_NAME = "libfrida-gadget.config";
     public static Context createAppContext() {
 
 //        LoadedApk.makeApplication()
@@ -70,9 +73,43 @@ public class AppUtils {
         return false;
     }
 
+    public static String getLocalPluginPath() {
+        String[] localPaths = {
+                "/sdcard/",
+                "/data/local/tmp/"
+        };
+        for (String path: localPaths) {
+            if (new File(path + FRIDA_SO_FILE_NAME).exists()) {
+                return path + FRIDA_SO_FILE_NAME;
+            }
+        }
+        return "";
+    }
+
+    public static String getLocalConfigPath() {
+        String[] localPaths = {
+                "/sdcard/",
+                "/data/local/tmp/"
+        };
+        for (String path: localPaths) {
+            if (new File(path + FRIDA_CONFIG_FILE_NAME).exists()) {
+                return path + FRIDA_CONFIG_FILE_NAME;
+            }
+        }
+        return "";
+    }
+
     public static String getPluginApkPath() {
         try {
-            Field fieldPathList = AppUtils.class.getClassLoader().getClass().getSuperclass().getDeclaredField("pathList");
+            ClassLoader loader = AppUtils.class.getClassLoader();
+            Class c = loader.getClass();
+            while (true) {
+                if (c.getName().contains("BaseDexClassLoader")) { break; }
+                if (c.getName().contains("Object")) { break; }
+                c = c.getSuperclass();
+            }
+
+            Field fieldPathList = c.getDeclaredField("pathList");
             fieldPathList.setAccessible(true);
             Object dexPathList = fieldPathList.get(AppUtils.class.getClassLoader());
 
@@ -86,6 +123,14 @@ public class AppUtils {
             Object dexFile = fieldDexFile.get(dexElement);
             String apkPath = ((DexFile) dexFile).getName();
 
+            if (apkPath == null) {
+                Class<?>[] parameterTypes = {};
+                Method getLdLibraryPath = loader.getClass().getMethod("getLdLibraryPath", parameterTypes);
+                Object[] args = {};
+                String ldpath = (String) getLdLibraryPath.invoke(loader, args);
+                apkPath = ldpath.split(":")[0].split("!")[0];
+            }
+
             // 8.0以及以上Element类中才有getDexPath这个接口
 //            Method method = dexElement.getClass().getDeclaredMethod("getDexPath");
 //            method.setAccessible(true);
@@ -94,6 +139,8 @@ public class AppUtils {
             return apkPath;
         } catch (IllegalAccessException | NoSuchFieldException e) {
             Log.e(TAG, "getPluginApkPath failed, msg --> " + e.getMessage(), e);
+        } catch (InvocationTargetException | NoSuchMethodException e) {
+            throw new RuntimeException(e);
         }
         return "";
     }
