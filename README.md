@@ -5,6 +5,17 @@
 Because there are wonderful Frida scripts and utilities that I wanna run as standalone on multiple apps, but I'm too lazy to port them to Xposed.
 So instead this Xposed module can automagically inject the Frida gadget dynamic library inside apps and load Frida scripts.
 
+## Known Bug
+
+Once you inject the Frida gadge inside an application, it will stay there forever until you manually remove it.
+Disabling or uninstalling the Xposed module will not restore the application.
+
+To remove the gadget, open an `adb shell` and do the following, making sure to replace `$PACKAGE` with the package you wanna restore:
+```
+su
+cd /data/user/0/$PACKAGE/files/lib/
+rm libfrida-gadget.*
+```
 
 ----
 
