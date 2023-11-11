@@ -7,6 +7,8 @@ So instead this Xposed module can automagically inject the Frida gadget dynamic 
 
 ## Known Bugs
 
+### How do I remove the Frida gadget from an app?
+
 Once you inject the Frida gadge inside an application, it will stay there forever until you manually remove it.
 Disabling or uninstalling the Xposed module will not restore the application.
 
@@ -15,6 +17,16 @@ To remove the gadget, open an `adb shell` and do the following, making sure to r
 su
 cd /data/user/0/$PACKAGE/files/lib/
 rm libfrida-gadget.*
+```
+
+### How do I log the output of my script?
+
+Yeah, `console.log` will not work since you are running standalone scripts.
+You can use Android's Toast, or better Logcat.
+Use the following lines in your script:
+```
+var log = Java.use('android.util.Log')
+log.e('FridaXposed', 'Hello world from a standalone Frida injected with Xposed')
 ```
 
 ----
